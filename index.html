@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Worry Sorter | Magic Edition</title>
+    <title>The Worry Sorter | Clarity Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -14,6 +14,17 @@
             --primary-dark: #2563EB;
             --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #dbeafe 100%);
             --glass: rgba(255, 255, 255, 0.75);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --card-border: rgba(255, 255, 255, 0.4);
+        }
+
+        [data-theme="dark"] {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --glass: rgba(30, 41, 59, 0.7);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --card-border: rgba(255, 255, 255, 0.1);
         }
 
         body {
@@ -22,12 +33,25 @@
             background-size: 400% 400%;
             animation: ambientBg 15s ease infinite;
             min-height: 100vh;
-            color: #1e293b;
+            color: var(--text-main);
             overflow-x: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 1rem;
+            transition: color 0.5s ease;
+        }
+
+        #parallaxBg {
+            position: fixed;
+            top: -10%;
+            left: -10%;
+            width: 120%;
+            height: 120%;
+            background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05), transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+            transition: transform 0.1s ease-out;
         }
 
         @keyframes ambientBg {
@@ -46,11 +70,11 @@
 
         .glass-card {
             background: var(--glass);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
-            transition: transform 0.3s ease;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
         }
 
         /* Grandma-Proof Sizes */
@@ -61,12 +85,12 @@
         }
 
         .text-grandma-body {
-            font-size: clamp(1.25rem, 3.5vw, 2.75rem);
+            font-size: clamp(1.25rem, 3.5vw, 2.5rem);
             line-height: 1.4;
         }
 
         .text-grandma-input {
-            font-size: clamp(1.5rem, 3vw, 2.5rem);
+            font-size: clamp(1.5rem, 3vw, 2.25rem);
         }
 
         /* Animations */
@@ -83,24 +107,6 @@
             to {
                 opacity: 1;
                 transform: translateY(0);
-            }
-        }
-
-        .pulse-voice {
-            animation: pulse-red 1.5s infinite;
-        }
-
-        @keyframes pulse-red {
-            0% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-            }
-
-            70% {
-                box-shadow: 0 0 0 20px rgba(239, 68, 68, 0);
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
             }
         }
 
@@ -130,299 +136,264 @@
             display: flex;
         }
 
-        canvas#particleCanvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 50;
+        /* Drag-to-Sort Mechanic */
+        #draggableWorry {
+            touch-action: none;
+            cursor: grab;
+            position: relative;
+            z-index: 10;
         }
 
-        .suggestion-chip {
+        #draggableWorry:active {
+            cursor: grabbing;
+        }
+
+        .drop-zone {
+            height: 14rem;
+            border: 4px dashed rgba(59, 130, 246, 0.2);
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone.active {
+            border-color: var(--primary);
             background: rgba(59, 130, 246, 0.1);
-            border: 2px solid rgba(59, 130, 246, 0.2);
-            transition: all 0.2s ease;
-            cursor: pointer;
+            transform: scale(1.02);
         }
 
-        .suggestion-chip:hover {
-            background: rgba(59, 130, 246, 0.2);
-            transform: scale(1.05);
+        .theme-toggle {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            z-index: 100;
         }
 
-        .listening-indicator {
-            position: absolute;
-            bottom: -3rem;
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #ef4444;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .state-recording .listening-indicator {
-            opacity: 1;
+        .wisdom-text {
+            border-left: 6px solid var(--primary);
+            padding-left: 1.5rem;
+            margin-top: 2rem;
+            font-style: italic;
+            color: var(--primary);
+            font-size: 1.5rem;
         }
     </style>
 </head>
 
-<body class="flex flex-col items-center justify-center min-h-screen">
+<body onmousemove="handleParallax(event)">
 
-    <canvas id="particleCanvas"></canvas>
+    <div id="parallaxBg"></div>
+
+    <button onclick="toggleTheme()"
+        class="theme-toggle glass-card p-4 rounded-full hover:scale-110 transition-transform">
+        <span id="themeIcon" class="text-3xl">🌙</span>
+    </button>
+
+    <canvas id="particleCanvas"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50;"></canvas>
 
     <!-- Screen 1: Initial Input -->
     <div id="screen1" class="screen active space-y-8 page-transition">
         <header class="text-center space-y-4">
-            <h1 class="text-grandma-title text-blue-600 tracking-tight">The Worry Sorter</h1>
-            <p class="text-grandma-body text-slate-500">Magic Addition: Speak or Type your worry</p>
+            <h1 class="text-grandma-title text-blue-500 tracking-tight">The Worry Sorter</h1>
+            <p class="text-grandma-body text-slate-400">Speak, Type, or Drag your worries away.</p>
         </header>
 
         <div class="glass-card rounded-[40px] p-8 md:p-12 space-y-8 relative">
             <div class="flex items-center justify-between">
-                <label for="worryInput" class="text-grandma-body font-semibold text-slate-700">
-                    What's weighing on you?
-                </label>
-                <div class="relative inline-block">
+                <label for="worryInput" class="text-grandma-body font-semibold opacity-80">What's weighing on
+                    you?</label>
+                <div class="relative">
                     <button id="voiceBtn" onclick="toggleVoice()"
-                        class="p-6 rounded-full bg-slate-100 hover:bg-red-100 transition-colors group">
+                        class="p-6 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-red-100 transition-colors group">
                         <span id="voiceIcon" class="text-4xl group-hover:scale-110 transition-transform">🎤</span>
                     </button>
-                    <div class="listening-indicator">Listening...</div>
                 </div>
             </div>
             <textarea id="worryInput"
-                class="w-full text-grandma-input p-8 bg-white/50 border-4 border-slate-200 rounded-3xl focus:ring-8 focus:ring-blue-100 focus:border-blue-400 focus:outline-none transition-all resize-none h-64 shadow-inner"
-                placeholder="Type here or tap the mic..."></textarea>
-
+                class="w-full text-grandma-input p-8 bg-white/10 dark:bg-black/20 border-4 border-slate-200 dark:border-slate-700 rounded-3xl focus:ring-8 focus:ring-blue-100 focus:border-blue-400 focus:outline-none transition-all resize-none h-64 shadow-inner text-inherit"
+                placeholder="Type or tap the mic..."></textarea>
             <button onclick="navTo(2)"
-                class="w-full btn-premium bg-blue-500 text-white text-grandma-body font-bold py-8 rounded-3xl">
-                Ready to Sort →
-            </button>
+                class="w-full btn-premium bg-blue-500 text-white text-grandma-body font-bold py-8 rounded-3xl">Ready to
+                Sort →</button>
         </div>
     </div>
 
-    <!-- Screen 2: Decision -->
+    <!-- Screen 2: Drag to Sort -->
     <div id="screen2" class="screen space-y-12 page-transition">
-        <div class="glass-card rounded-[40px] p-10 bg-blue-50/50">
-            <p id="worryDisplay" class="text-grandma-body text-slate-800 italic leading-snug font-medium text-center">
-                <!-- Content injected via JS -->
-            </p>
-        </div>
+        <h2 class="text-grandma-title text-center opacity-80">Drag your worry to sort it</h2>
 
-        <h2 class="text-grandma-title text-center text-slate-800">Can you fix this?</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center h-[30rem] relative">
+            <!-- Drop Zone NO (Top or Left) -->
+            <div id="dropNo" class="drop-zone flex-col gap-2">
+                <span class="text-6xl">🗑️</span>
+                <span class="text-2xl font-bold uppercase tracking-widest text-slate-400">I can't fix it</span>
+            </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <button onclick="handleDecision(true)"
-                class="btn-premium bg-emerald-500 text-white text-grandma-body font-extrabold py-12 rounded-[40px] shadow-xl shadow-emerald-200/50">
-                YES
-            </button>
-            <button onclick="handleDecision(false)"
-                class="btn-premium bg-slate-400 text-white text-grandma-body font-extrabold py-12 rounded-[40px] shadow-xl shadow-slate-200/50">
-                NO
-            </button>
-        </div>
+            <!-- Draggable Worry -->
+            <div id="draggableWorry"
+                class="glass-card rounded-[40px] p-8 absolute left-2/4 top-2/4 -translate-x-2/4 -translate-y-2/4 w-full md:w-80 shadow-2xl border-2 border-blue-400"
+                onpointerdown="startDrag(event)">
+                <p id="worryDisplay" class="text-xl italic font-medium text-center line-clamp-4">...</p>
+                <div class="mt-4 text-center text-sm font-bold text-blue-400 animate-pulse">DRAG ME</div>
+            </div>
 
-        <button onclick="navTo(1)"
-            class="text-2xl font-bold text-slate-400 hover:text-slate-600 underline decoration-2 underline-offset-8 transition-colors text-center">
-            ← Change my mind
-        </button>
-    </div>
-
-    <!-- Screen 3a: Trash flow / Particles -->
-    <div id="screen3a" class="screen items-center text-center space-y-12 page-transition">
-        <div id="trashAnchor" class="text-[12rem] relative">
-            <span id="trashIcon">🗑️</span>
-        </div>
-
-        <div id="worryToTrashContainer" class="glass-card rounded-full px-12 py-6 border-slate-300">
-            <p id="worryToTrash" class="text-3xl text-slate-400 italic font-medium"></p>
-        </div>
-
-        <div class="space-y-6">
-            <h2 class="text-grandma-title text-slate-800">It's Dust.</h2>
-            <p class="text-grandma-body text-slate-500">If it's out of your hands, let it be out of your mind.</p>
-        </div>
-
-        <button onclick="resetApp()"
-            class="btn-premium bg-slate-800 text-white text-grandma-body font-bold px-16 py-8 rounded-full">
-            Breathe Out
-        </button>
-    </div>
-
-    <!-- Screen 3b: Action Plan / Paywall -->
-    <div id="screen3b" class="screen space-y-12 page-transition">
-        <div class="space-y-4 text-center">
-            <h2 class="text-grandma-title text-blue-600">Great!</h2>
-            <p class="text-grandma-body text-slate-500">Let's build a small bridge over this.</p>
-        </div>
-
-        <div id="paywall"
-            class="glass-card rounded-[40px] p-12 border-2 border-amber-200 bg-amber-50/50 space-y-8 text-center">
-            <div class="text-7xl">🔒</div>
-            <h3 class="text-4xl font-extrabold text-amber-900">Unlock Master Action Plans</h3>
-            <p class="text-2xl text-amber-800">Organize your thoughts and track progress for only $5.</p>
-
-            <button onclick="simulatePayment()"
-                class="w-full btn-premium bg-amber-400 hover:bg-amber-500 text-amber-950 text-grandma-body font-black py-8 rounded-3xl flex items-center justify-center gap-4">
-                <span>💳</span> Pay with PayPal
-            </button>
-            <p class="text-lg font-bold text-amber-600/50 uppercase tracking-widest">Demo Mode: No payment processed</p>
-        </div>
-
-        <div id="planningSection" class="hidden space-y-8">
-            <div class="glass-card rounded-[40px] p-10 space-y-8">
-                <label for="stepInput" class="block text-grandma-body font-semibold text-slate-700 text-center">
-                    What is ONE small step you can take today?
-                </label>
-
-                <div id="suggestionContainer" class="flex flex-wrap justify-center gap-4">
-                    <!-- Suggestions rendered via JS -->
-                </div>
-
-                <textarea id="stepInput"
-                    class="w-full text-grandma-input p-6 border-4 border-blue-200 rounded-2xl focus:border-blue-500 focus:outline-none h-48"
-                    placeholder="e.g. Call the bank, send that email..."></textarea>
-
-                <button onclick="saveAction()"
-                    class="w-full btn-premium bg-blue-600 text-white text-grandma-body font-bold py-8 rounded-3xl">
-                    Save Action Plan →
-                </button>
+            <!-- Drop Zone YES (Bottom or Right) -->
+            <div id="dropYes" class="drop-zone flex-col gap-2">
+                <span class="text-6xl">✨</span>
+                <span class="text-2xl font-bold uppercase tracking-widest text-emerald-500">I can fix it</span>
             </div>
         </div>
+
+        <button onclick="navTo(1)" class="text-xl font-bold text-slate-400 hover:text-slate-600 underline text-center">←
+            Give me a moment</button>
     </div>
 
-    <!-- Screen 4: Success / History -->
+    <!-- Screen 3a: Trash flow -->
+    <div id="screen3a" class="screen items-center text-center space-y-12 page-transition">
+        <div id="trashIcon" class="text-[12rem]">🗑️</div>
+        <div id="worryToTrashContainer" class="glass-card rounded-full px-12 py-6">
+            <p id="worryToTrash" class="text-3xl opacity-60 italic font-medium"></p>
+        </div>
+        <div class="space-y-6">
+            <h2 class="text-grandma-title">It's Over.</h2>
+            <p class="text-grandma-body text-slate-400">It's officially out of your hands.</p>
+        </div>
+        <button onclick="resetApp()"
+            class="btn-premium bg-slate-800 text-white text-grandma-body font-bold px-16 py-8 rounded-full">Breathe
+            Out</button>
+    </div>
+
+    <!-- Screen 3b: Action Planning -->
+    <div id="screen3b" class="screen space-y-12 page-transition">
+        <div class="text-center space-y-4">
+            <h2 class="text-grandma-title text-blue-500">Clarity Found.</h2>
+            <p class="text-grandma-body opacity-60">Let's turn this into an action.</p>
+        </div>
+
+        <div id="planningSection" class="glass-card rounded-[40px] p-10 space-y-8">
+            <label class="block text-grandma-body font-semibold text-center">What is ONE small step you can take
+                today?</label>
+            <div id="suggestionContainer" class="flex flex-wrap justify-center gap-4"></div>
+            <textarea id="stepInput"
+                class="w-full text-grandma-input p-6 bg-white/10 border-4 border-blue-200 dark:border-blue-900 rounded-2xl focus:border-blue-500 focus:outline-none h-40 text-inherit"
+                placeholder="e.g. Call the plumber..."></textarea>
+
+            <div id="wisdomSpot" class="wisdom-text hidden"></div>
+
+            <button onclick="saveAction()"
+                class="w-full btn-premium bg-blue-600 text-white text-grandma-body font-bold py-8 rounded-3xl">Save
+                Action Plan →</button>
+        </div>
+    </div>
+
+    <!-- Screen 4: Success -->
     <div id="screen4" class="screen space-y-12 page-transition">
         <div class="text-center space-y-4">
-            <div class="text-9xl">✨</div>
-            <h2 class="text-grandma-title text-emerald-600">Sorted!</h2>
+            <div class="text-9xl">🏛️</div>
+            <h2 class="text-grandma-title text-emerald-500">Sorted Archive</h2>
         </div>
 
         <div class="glass-card rounded-[40px] p-10 space-y-8">
-            <div class="flex items-center justify-between border-b pb-4 border-slate-200">
-                <h3 class="text-3xl font-bold text-slate-700">Your Action Archive:</h3>
-                <button onclick="clearHistory()"
-                    class="text-xl font-bold text-red-400 hover:text-red-600 transition-colors uppercase tracking-tight">Clear
-                    My Archive</button>
+            <div class="flex items-center justify-between border-b pb-4 border-slate-200 dark:border-slate-700">
+                <h3 class="text-3xl font-bold opacity-80">Your Map to Clarity:</h3>
+                <div class="flex gap-4">
+                    <button onclick="exportArchive()"
+                        class="text-lg font-bold text-blue-400 hover:text-blue-600 transition-colors uppercase">Copy
+                        Data</button>
+                    <button onclick="clearHistory()"
+                        class="text-lg font-bold text-red-300 hover:text-red-500 transition-colors uppercase">Clear</button>
+                </div>
             </div>
-            <div id="historyList" class="space-y-6">
-                <!-- LocalStorage data here -->
-            </div>
+            <div id="historyList" class="space-y-6"></div>
         </div>
 
         <button onclick="resetApp()"
-            class="btn-premium bg-blue-500 text-white text-grandma-body font-bold w-full py-8 rounded-3xl">
-            Sort Another Worry
-        </button>
+            class="btn-premium bg-blue-500 text-white text-grandma-body font-bold w-full py-8 rounded-3xl">Sort Another
+            Worry</button>
     </div>
 
     <script>
-        let state = {
-            currentWorry: '',
-            isPaid: false,
-            isRecording: false
+        let state = { currentWorry: '', isRecording: false, dragStart: { x: 0, y: 0 }, dragOffset: { x: 0, y: 0 } };
+
+        // --- Theme Logic ---
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('ws_theme', next);
+            document.getElementById('themeIcon').textContent = next === 'light' ? '🌙' : '☀️';
+            playSynthSound('click');
+        }
+        window.onload = () => {
+            const saved = localStorage.getItem('ws_theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+            document.getElementById('themeIcon').textContent = saved === 'light' ? '🌙' : '☀️';
+            renderHistory();
         };
 
-        const canvas = document.getElementById('particleCanvas');
-        const ctx = canvas.getContext('2d');
-        let particles = [];
+        // --- Mouse Parallax ---
+        function handleParallax(e) {
+            const x = (window.innerWidth / 2 - e.pageX) / 25;
+            const y = (window.innerHeight / 2 - e.pageY) / 25;
+            document.getElementById('parallaxBg').style.transform = `translate(${x}px, ${y}px)`;
+        }
 
-        // --- Audio Context for Synthetic Sounds ---
+        // --- Audio Context Synth ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
         function playSynthSound(type) {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
+            osc.connect(gain); gain.connect(audioCtx.destination);
             if (type === 'whoosh') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(400, audioCtx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.5);
                 gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
                 osc.start(); osc.stop(audioCtx.currentTime + 0.5);
             } else if (type === 'ding') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(800, audioCtx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
                 gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
                 osc.start(); osc.stop(audioCtx.currentTime + 0.6);
             } else if (type === 'click') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.type = 'sine'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
                 gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
                 osc.start(); osc.stop(audioCtx.currentTime + 0.1);
             }
         }
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        // --- Drag Logic ---
+        function startDrag(e) {
+            state.dragStart = { x: e.clientX, y: e.clientY };
+            state.dragOffset = { x: 0, y: 0 };
+            document.addEventListener('pointermove', onDrag);
+            document.addEventListener('pointerup', endDrag);
         }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+        function onDrag(e) {
+            const dx = e.clientX - state.dragStart.x;
+            const dy = e.clientY - state.dragStart.y;
+            state.dragOffset = { x: dx, y: dy };
+            const el = document.getElementById('draggableWorry');
+            el.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) rotate(${dx / 20}deg)`;
 
-        // --- Voice Logic ---
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let recognition;
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'en-US';
-
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                document.getElementById('worryInput').value += (document.getElementById('worryInput').value ? ' ' : '') + transcript;
-                stopVoice();
-            };
-
-            recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                alert("The microphone encountered an error. Please check your permissions.");
-                stopVoice();
-            };
-
-            recognition.onend = () => stopVoice();
+            // Interaction visual
+            document.getElementById('dropNo').classList.toggle('active', dx < -150);
+            document.getElementById('dropYes').classList.toggle('active', dx > 150);
         }
-
-        function toggleVoice() {
-            playSynthSound('click');
-            if (!recognition) return alert("Speech recognition is not supported in this browser.");
-            if (state.isRecording) {
-                stopVoice();
-            } else {
-                startVoice();
-            }
-        }
-
-        function startVoice() {
-            state.isRecording = true;
-            document.body.classList.add('state-recording');
-            document.getElementById('voiceBtn').classList.add('pulse-voice', 'bg-red-500');
-            document.getElementById('voiceIcon').textContent = '⏹️';
-            try {
-                recognition.start();
-            } catch (e) { console.error(e); }
-        }
-
-        function stopVoice() {
-            state.isRecording = false;
-            document.body.classList.remove('state-recording');
-            document.getElementById('voiceBtn').classList.remove('pulse-voice', 'bg-red-500');
-            document.getElementById('voiceIcon').textContent = '🎤';
-            try {
-                recognition.stop();
-            } catch (e) { /* ignore */ }
+        function endDrag(e) {
+            document.removeEventListener('pointermove', onDrag);
+            document.removeEventListener('pointerup', endDrag);
+            const el = document.getElementById('draggableWorry');
+            if (state.dragOffset.x < -150) { handleDecision(false); }
+            else if (state.dragOffset.x > 150) { handleDecision(true); }
+            else { el.style.transform = 'translate(-50%, -50%)'; el.style.transition = 'transform 0.3s ease'; setTimeout(() => el.style.transition = '', 300); }
+            document.getElementById('dropNo').classList.remove('active');
+            document.getElementById('dropYes').classList.remove('active');
         }
 
         // --- Navigation ---
@@ -430,174 +401,125 @@
             playSynthSound('click');
             if (screenId === 2) {
                 const input = document.getElementById('worryInput').value.trim();
-                if (!input) return alert("Please tell me what's bothering you first.");
+                if (!input) return alert("What's weighing on you? Type it first.");
                 state.currentWorry = input;
                 document.getElementById('worryDisplay').innerText = `"${input}"`;
+                document.getElementById('draggableWorry').style.transform = 'translate(-50%, -50%)';
             }
-
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             const target = isNaN(screenId) ? document.getElementById(screenId) : document.getElementById(`screen${screenId}`);
             target.classList.add('active');
-            window.scrollTo(0, 0);
-
-            if (screenId === '3b') renderSuggestions();
+            if (screenId === '3b') { renderSuggestions(); detectWisdom(); }
         }
 
         function handleDecision(canFix) {
-            if (canFix) {
-                navTo('3b');
-                if (localStorage.getItem('ws_isPaid') === 'true') {
-                    state.isPaid = true;
-                    showPlanning();
-                }
-            } else {
-                explodeWorry();
-            }
+            if (canFix) { navTo('3b'); }
+            else { explodeWorry(); }
         }
 
-        function explodeWorry() {
-            document.getElementById('worryToTrash').innerText = state.currentWorry;
-            navTo('3a');
+        // --- Particles ---
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
 
+        function explodeWorry() {
+            document.getElementById('worryToTrash').innerText = state.currentWorry; navTo('3a');
             setTimeout(() => {
                 playSynthSound('whoosh');
                 const rect = document.getElementById('worryToTrashContainer').getBoundingClientRect();
                 createExplosion(rect.left + rect.width / 2, rect.top + rect.height / 2);
                 document.getElementById('worryToTrashContainer').style.opacity = '0';
-                document.getElementById('trashIcon').textContent = '✨';
-            }, 1000);
+            }, 800);
         }
-
         function createExplosion(x, y) {
-            for (let i = 0; i < 150; i++) {
-                particles.push({
-                    x, y,
-                    vx: (Math.random() - 0.5) * 20,
-                    vy: (Math.random() - 0.5) * 20,
-                    size: Math.random() * 8 + 2,
-                    color: `hsl(${220 + Math.random() * 40}, 70%, 60%)`,
-                    life: 1
-                });
+            for (let i = 0; i < 200; i++) {
+                particles.push({ x, y, vx: (Math.random() - 0.5) * 25, vy: (Math.random() - 0.5) * 25, size: Math.random() * 6 + 2, color: `hsl(${220 + Math.random() * 40}, 80%, 70%)`, life: 1 });
             }
             animateParticles();
         }
-
         function animateParticles() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             particles = particles.filter(p => p.life > 0);
-
             particles.forEach(p => {
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vy += 0.5; // gravity
-                p.life -= 0.02;
-                ctx.globalAlpha = p.life;
-                ctx.fillStyle = p.color;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                ctx.fill();
+                p.x += p.vx; p.y += p.vy; p.vy += 0.5; p.life -= 0.02;
+                ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
             });
-
             if (particles.length > 0) requestAnimationFrame(animateParticles);
         }
 
-        function simulatePayment() {
-            playSynthSound('click');
-            state.isPaid = true;
-            localStorage.setItem('ws_isPaid', 'true');
-            showPlanning();
+        // --- Magic Wisdom Engine ---
+        const wisdomBank = {
+            'money': "Financial clouds pass with careful steps. Start small.",
+            'love': "Connection is a garden. Water your heart first.",
+            'work': "Productivity is not worth. You are valuable as you are.",
+            'health': "Every breath is a new beginning. Listen to your body.",
+            'default': "Clarity begins when you decide that you are in control."
+        };
+        function detectWisdom() {
+            const w = state.currentWorry.toLowerCase();
+            let msg = wisdomBank['default'];
+            for (let k in wisdomBank) { if (w.includes(k)) msg = wisdomBank[k]; }
+            const spot = document.getElementById('wisdomSpot');
+            spot.innerText = `Magic Wisdom: "${msg}"`;
+            spot.classList.remove('hidden');
         }
 
-        function showPlanning() {
-            document.getElementById('paywall').classList.add('hidden');
-            const section = document.getElementById('planningSection');
-            section.classList.remove('hidden');
-            section.classList.add('page-transition');
-            renderSuggestions();
-        }
-
-        const suggestionBank = [
-            "Make a quick call", "Send a simple email", "Ask for 10 min to talk",
-            "Write down 3 steps", "Take a deep breath first", "Set a timer for 5 mins",
-            "Go for a short walk", "Talk to a friend about it", "Look up a professional"
-        ];
-
+        // --- Suggestions & Save ---
+        const suggestionBank = ["Call someone", "Send an email", "Set a 5min timer", "Deep breath", "Ask for help", "Walk away for 10m"];
         function renderSuggestions() {
             const container = document.getElementById('suggestionContainer');
-            if (!container) return;
-            const shuffled = suggestionBank.sort(() => 0.5 - Math.random()).slice(0, 4);
-            container.innerHTML = shuffled.map(s => `
-                <span onclick="applySuggestion('${s}')" class="suggestion-chip px-6 py-2 rounded-full text-xl font-medium text-blue-600">${s}</span>
+            container.innerHTML = suggestionBank.sort(() => 0.5 - Math.random()).slice(0, 4).map(s => `
+                <span onclick="applySuggestion('${s}')" class="suggestion-chip px-6 py-2 rounded-full text-xl font-medium text-blue-500">${s}</span>
             `).join('');
         }
-
-        function applySuggestion(text) {
-            playSynthSound('click');
-            document.getElementById('stepInput').value = text;
-        }
+        function applySuggestion(t) { playSynthSound('click'); document.getElementById('stepInput').value = t; }
 
         function saveAction() {
             const step = document.getElementById('stepInput').value.trim();
-            if (!step) return alert("Please write down one small step.");
-
-            const item = {
-                worry: state.currentWorry,
-                step: step,
-                date: new Date().toLocaleDateString()
-            };
-
+            if (!step) return alert("Write down one step.");
+            const item = { worry: state.currentWorry, step, date: new Date().toLocaleDateString() };
             const history = JSON.parse(localStorage.getItem('ws_history') || '[]');
             history.unshift(item);
             localStorage.setItem('ws_history', JSON.stringify(history));
-
-            renderHistory();
-            navTo(4);
-
+            renderHistory(); navTo(4);
             playSynthSound('ding');
-            confetti({
-                particleCount: 150,
-                spread: 70,
-                origin: { y: 0.6 },
-                colors: ['#3B82F6', '#10B981', '#F59E0B']
-            });
+            confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 } });
         }
 
         function renderHistory() {
             const history = JSON.parse(localStorage.getItem('ws_history') || '[]');
             const container = document.getElementById('historyList');
-            container.innerHTML = history.length ? '' : '<p class="text-2xl text-slate-400 text-center italic">No actions saved yet.</p>';
-
+            container.innerHTML = history.length ? '' : '<p class="text-2xl text-slate-400 italic text-center">Your map is empty.</p>';
             history.forEach(item => {
                 const div = document.createElement('div');
-                div.className = 'bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-2 hover:shadow-md transition-shadow page-transition';
-                div.innerHTML = `
-                    <p class="text-xl text-slate-400 font-medium">"${item.worry}"</p>
-                    <p class="text-3xl text-blue-600 font-bold">→ ${item.step}</p>
-                    <p class="text-lg text-slate-300 font-bold uppercase tracking-widest">${item.date}</p>
-                `;
+                div.className = 'glass-card p-6 rounded-3xl space-y-2 hover:scale-[1.01] transition-all bg-white/5 dark:bg-white/5';
+                div.innerHTML = `<p class="text-lg opacity-50">"${item.worry}"</p><p class="text-2xl font-bold text-blue-500">→ ${item.step}</p>`;
                 container.appendChild(div);
             });
         }
-
-        function clearHistory() {
-            if (confirm("Are you sure you want to clear your entire archive? This cannot be undone.")) {
-                localStorage.removeItem('ws_history');
-                renderHistory();
-                playSynthSound('whoosh');
-            }
+        function clearHistory() { if (confirm("Erase your archive?")) { localStorage.removeItem('ws_history'); renderHistory(); playSynthSound('whoosh'); } }
+        function exportArchive() {
+            const h = JSON.parse(localStorage.getItem('ws_history') || '[]');
+            const txt = h.map(i => `[${i.date}] Worry: ${i.worry} -> Action: ${i.step}`).join('\n');
+            navigator.clipboard.writeText(txt).then(() => alert("Archive copied to clipboard!"));
         }
 
-        function resetApp() {
-            playSynthSound('click');
-            document.getElementById('worryInput').value = '';
-            document.getElementById('stepInput').value = '';
-            state.currentWorry = '';
-            document.getElementById('worryToTrashContainer').style.opacity = '1';
-            document.getElementById('trashIcon').textContent = '🗑️';
-            navTo(1);
-        }
+        function resetApp() { state.currentWorry = ''; document.getElementById('worryInput').value = ''; document.getElementById('stepInput').value = ''; document.getElementById('worryToTrashContainer').style.opacity = '1'; navTo(1); }
 
-        window.onload = renderHistory;
+        // --- Voice Shell ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.onresult = (e) => { document.getElementById('worryInput').value += (document.getElementById('worryInput').value ? ' ' : '') + e.results[0][0].transcript; stopVoice(); };
+            recognition.onend = stopVoice;
+        }
+        function toggleVoice() { if (!recognition) return alert("Mic not supported."); state.isRecording ? stopVoice() : startVoice(); }
+        function startVoice() { state.isRecording = true; document.getElementById('voiceBtn').classList.add('pulse-voice', 'bg-red-500'); recognition.start(); }
+        function stopVoice() { state.isRecording = false; document.getElementById('voiceBtn').classList.remove('pulse-voice', 'bg-red-500'); recognition.stop(); }
     </script>
 </body>
 
