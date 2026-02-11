@@ -407,8 +407,8 @@
                 document.getElementById('draggableWorry').style.transform = 'translate(-50%, -50%)';
             }
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            const target = isNaN(screenId) ? document.getElementById(screenId) : document.getElementById(`screen${screenId}`);
-            target.classList.add('active');
+            const target = document.getElementById(`screen${screenId}`);
+            if (target) target.classList.add('active');
             if (screenId === '3b') { renderSuggestions(); detectWisdom(); }
         }
 
