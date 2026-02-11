@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Worry Sorter | Clarity Edition</title>
+    <title>The Worry Sorter | Mentor Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -179,6 +179,37 @@
             color: var(--primary);
             font-size: 1.5rem;
         }
+
+        /* Mentor Insight Overlay */
+        #insightOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #insightOverlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .insight-card {
+            transform: scale(0.9);
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #insightOverlay.active .insight-card {
+            transform: scale(1);
+        }
     </style>
 </head>
 
@@ -193,6 +224,21 @@
 
     <canvas id="particleCanvas"
         style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50;"></canvas>
+
+    <!-- Insight Overlay (The Mentor) -->
+    <div id="insightOverlay">
+        <div
+            class="insight-card glass-card p-10 rounded-[40px] max-w-2xl text-center space-y-8 m-4 bg-white dark:bg-slate-900 border-2 border-blue-400 shadow-2xl">
+            <div class="text-6xl animate-bounce">💬</div>
+            <p id="insightText" class="text-grandma-body font-medium leading-relaxed">
+                <!-- Insight text goes here -->
+            </p>
+            <button onclick="closeInsight()"
+                class="btn-premium bg-blue-600 text-white text-2xl font-bold py-4 px-12 rounded-full shadow-lg">
+                Thank you
+            </button>
+        </div>
+    </div>
 
     <!-- Screen 1: Initial Input -->
     <div id="screen1" class="screen active space-y-8 page-transition">
@@ -226,13 +272,11 @@
         <h2 class="text-grandma-title text-center opacity-80">Drag your worry to sort it</h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center h-[30rem] relative">
-            <!-- Drop Zone NO (Top or Left) -->
             <div id="dropNo" class="drop-zone flex-col gap-2">
                 <span class="text-6xl">🗑️</span>
                 <span class="text-2xl font-bold uppercase tracking-widest text-slate-400">I can't fix it</span>
             </div>
 
-            <!-- Draggable Worry -->
             <div id="draggableWorry"
                 class="glass-card rounded-[40px] p-8 absolute left-2/4 top-2/4 -translate-x-2/4 -translate-y-2/4 w-full md:w-80 shadow-2xl border-2 border-blue-400"
                 onpointerdown="startDrag(event)">
@@ -240,13 +284,11 @@
                 <div class="mt-4 text-center text-sm font-bold text-blue-400 animate-pulse">DRAG ME</div>
             </div>
 
-            <!-- Drop Zone YES (Bottom or Right) -->
             <div id="dropYes" class="drop-zone flex-col gap-2">
                 <span class="text-6xl">✨</span>
                 <span class="text-2xl font-bold uppercase tracking-widest text-emerald-500">I can fix it</span>
             </div>
         </div>
-
         <button onclick="navTo(1)" class="text-xl font-bold text-slate-400 hover:text-slate-600 underline text-center">←
             Give me a moment</button>
     </div>
@@ -316,7 +358,7 @@
     </div>
 
     <script>
-        let state = { currentWorry: '', isRecording: false, dragStart: { x: 0, y: 0 }, dragOffset: { x: 0, y: 0 } };
+        let state = { currentWorry: '', isRecording: false, dragStart: { x: 0, y: 0 }, dragOffset: { x: 0, y: 0 }, pendingScreen: null };
 
         // --- Theme Logic ---
         function toggleTheme() {
@@ -380,8 +422,6 @@
             state.dragOffset = { x: dx, y: dy };
             const el = document.getElementById('draggableWorry');
             el.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) rotate(${dx / 20}deg)`;
-
-            // Interaction visual
             document.getElementById('dropNo').classList.toggle('active', dx < -150);
             document.getElementById('dropYes').classList.toggle('active', dx > 150);
         }
@@ -417,6 +457,41 @@
             else { explodeWorry(); }
         }
 
+        // --- Insight & Voice Logic (Mentor V5) ---
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.9;
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function showInsight(text, nextScreenId) {
+            const overlay = document.getElementById('insightOverlay');
+            document.getElementById('insightText').innerText = text;
+            overlay.classList.add('active');
+            state.pendingScreen = nextScreenId;
+            speak(text);
+        }
+
+        function closeInsight() {
+            playSynthSound('click');
+            document.getElementById('insightOverlay').classList.remove('active');
+            window.speechSynthesis.cancel();
+            if (state.pendingScreen) {
+                navTo(state.pendingScreen);
+                state.pendingScreen = null;
+            } else {
+                // If closing from Trash flow (which doesn't navigate to a new screen automatically inside closeInsight usually)
+                // But resetApp handles navigation. 
+                // Wait, logic check: explodeWorry shows navTo(3a). User clicks "Breathe Out" -> resetApp.
+                // We want Insight AFTER "Breathe Out" (or maybe after Explode?)
+                // Let's put Insight AFTER Explode.
+            }
+        }
+
         // --- Particles ---
         const canvas = document.getElementById('particleCanvas');
         const ctx = canvas.getContext('2d');
@@ -425,14 +500,23 @@
         window.addEventListener('resize', resizeCanvas); resizeCanvas();
 
         function explodeWorry() {
-            document.getElementById('worryToTrash').innerText = state.currentWorry; navTo('3a');
+            document.getElementById('worryToTrash').innerText = state.currentWorry;
+            navTo('3a');
+
             setTimeout(() => {
                 playSynthSound('whoosh');
                 const rect = document.getElementById('worryToTrashContainer').getBoundingClientRect();
                 createExplosion(rect.left + rect.width / 2, rect.top + rect.height / 2);
                 document.getElementById('worryToTrashContainer').style.opacity = '0';
+
+                // Show Insight after explosion
+                setTimeout(() => {
+                    const msg = "It is gone. You've released the weight. Doesn't that feel lighter?";
+                    showInsight(msg, null); // Stay on 3a after close, waiting for "Breathe Out"
+                }, 1500);
             }, 800);
         }
+
         function createExplosion(x, y) {
             for (let i = 0; i < 200; i++) {
                 particles.push({ x, y, vx: (Math.random() - 0.5) * 25, vy: (Math.random() - 0.5) * 25, size: Math.random() * 6 + 2, color: `hsl(${220 + Math.random() * 40}, 80%, 70%)`, life: 1 });
@@ -458,6 +542,14 @@
             'health': "Every breath is a new beginning. Listen to your body.",
             'default': "Clarity begins when you decide that you are in control."
         };
+        const conversationalBank = {
+            'money': "Money stress is heavy, but you are resourceful. This plan is your first step to reclaiming control.",
+            'love': "Relationships are complex. By taking this step, you are honoring your own peace.",
+            'work': "Work will always be there, but your peace of mind is precious. Good job setting a boundary.",
+            'health': "Your body listens to your mind. This action is a signal of care to yourself.",
+            'default': "A plan is a promise to yourself. You have turned worry into action. I'm proud of you."
+        };
+
         function detectWisdom() {
             const w = state.currentWorry.toLowerCase();
             let msg = wisdomBank['default'];
@@ -465,6 +557,13 @@
             const spot = document.getElementById('wisdomSpot');
             spot.innerText = `Magic Wisdom: "${msg}"`;
             spot.classList.remove('hidden');
+        }
+
+        function getConversationalWisdom() {
+            const w = state.currentWorry.toLowerCase();
+            let msg = conversationalBank['default'];
+            for (let k in conversationalBank) { if (w.includes(k)) msg = conversationalBank[k]; }
+            return msg;
         }
 
         // --- Suggestions & Save ---
@@ -484,9 +583,16 @@
             const history = JSON.parse(localStorage.getItem('ws_history') || '[]');
             history.unshift(item);
             localStorage.setItem('ws_history', JSON.stringify(history));
-            renderHistory(); navTo(4);
+            renderHistory();
+
+            // Show Insight before navigating to list
             playSynthSound('ding');
             confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 } });
+
+            setTimeout(() => {
+                const msg = getConversationalWisdom();
+                showInsight(msg, 4);
+            }, 800);
         }
 
         function renderHistory() {
