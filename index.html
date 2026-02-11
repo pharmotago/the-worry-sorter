@@ -151,10 +151,27 @@
             background: rgba(59, 130, 246, 0.2);
             transform: scale(1.05);
         }
+
+        .listening-indicator {
+            position: absolute;
+            bottom: -3rem;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #ef4444;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .state-recording .listening-indicator {
+            opacity: 1;
+        }
     </style>
 </head>
 
-<body>
+<body class="flex flex-col items-center justify-center min-h-screen">
 
     <canvas id="particleCanvas"></canvas>
 
@@ -165,15 +182,18 @@
             <p class="text-grandma-body text-slate-500">Magic Addition: Speak or Type your worry</p>
         </header>
 
-        <div class="glass-card rounded-[40px] p-8 md:p-12 space-y-8">
+        <div class="glass-card rounded-[40px] p-8 md:p-12 space-y-8 relative">
             <div class="flex items-center justify-between">
                 <label for="worryInput" class="text-grandma-body font-semibold text-slate-700">
                     What's weighing on you?
                 </label>
-                <button id="voiceBtn" onclick="toggleVoice()"
-                    class="p-6 rounded-full bg-slate-100 hover:bg-red-100 transition-colors group">
-                    <span id="voiceIcon" class="text-4xl group-hover:scale-110 transition-transform">🎤</span>
-                </button>
+                <div class="relative inline-block">
+                    <button id="voiceBtn" onclick="toggleVoice()"
+                        class="p-6 rounded-full bg-slate-100 hover:bg-red-100 transition-colors group">
+                        <span id="voiceIcon" class="text-4xl group-hover:scale-110 transition-transform">🎤</span>
+                    </button>
+                    <div class="listening-indicator">Listening...</div>
+                </div>
             </div>
             <textarea id="worryInput"
                 class="w-full text-grandma-input p-8 bg-white/50 border-4 border-slate-200 rounded-3xl focus:ring-8 focus:ring-blue-100 focus:border-blue-400 focus:outline-none transition-all resize-none h-64 shadow-inner"
@@ -260,19 +280,8 @@
                     What is ONE small step you can take today?
                 </label>
 
-                <div class="flex flex-wrap justify-center gap-4">
-                    <span onclick="applySuggestion('Make a quick call')"
-                        class="suggestion-chip px-6 py-2 rounded-full text-xl font-medium text-blue-600">Make a
-                        call</span>
-                    <span onclick="applySuggestion('Send a simple email')"
-                        class="suggestion-chip px-6 py-2 rounded-full text-xl font-medium text-blue-600">Send an
-                        email</span>
-                    <span onclick="applySuggestion('Ask for 10 min to talk')"
-                        class="suggestion-chip px-6 py-2 rounded-full text-xl font-medium text-blue-600">Ask for
-                        help</span>
-                    <span onclick="applySuggestion('Write down 3 steps')"
-                        class="suggestion-chip px-6 py-2 rounded-full text-xl font-medium text-blue-600">Write it
-                        down</span>
+                <div id="suggestionContainer" class="flex flex-wrap justify-center gap-4">
+                    <!-- Suggestions rendered via JS -->
                 </div>
 
                 <textarea id="stepInput"
@@ -295,7 +304,12 @@
         </div>
 
         <div class="glass-card rounded-[40px] p-10 space-y-8">
-            <h3 class="text-3xl font-bold text-slate-700 border-b pb-4 border-slate-200">Your Action Archive:</h3>
+            <div class="flex items-center justify-between border-b pb-4 border-slate-200">
+                <h3 class="text-3xl font-bold text-slate-700">Your Action Archive:</h3>
+                <button onclick="clearHistory()"
+                    class="text-xl font-bold text-red-400 hover:text-red-600 transition-colors uppercase tracking-tight">Clear
+                    My Archive</button>
+            </div>
             <div id="historyList" class="space-y-6">
                 <!-- LocalStorage data here -->
             </div>
@@ -318,6 +332,38 @@
         const ctx = canvas.getContext('2d');
         let particles = [];
 
+        // --- Audio Context for Synthetic Sounds ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSynthSound(type) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'whoosh') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+            } else if (type === 'ding') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+            } else if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            }
+        }
+
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -325,7 +371,7 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // Voice Logic
+        // --- Voice Logic ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition;
         if (SpeechRecognition) {
@@ -340,10 +386,17 @@
                 stopVoice();
             };
 
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                alert("The microphone encountered an error. Please check your permissions.");
+                stopVoice();
+            };
+
             recognition.onend = () => stopVoice();
         }
 
         function toggleVoice() {
+            playSynthSound('click');
             if (!recognition) return alert("Speech recognition is not supported in this browser.");
             if (state.isRecording) {
                 stopVoice();
@@ -354,20 +407,27 @@
 
         function startVoice() {
             state.isRecording = true;
+            document.body.classList.add('state-recording');
             document.getElementById('voiceBtn').classList.add('pulse-voice', 'bg-red-500');
             document.getElementById('voiceIcon').textContent = '⏹️';
-            recognition.start();
+            try {
+                recognition.start();
+            } catch (e) { console.error(e); }
         }
 
         function stopVoice() {
             state.isRecording = false;
+            document.body.classList.remove('state-recording');
             document.getElementById('voiceBtn').classList.remove('pulse-voice', 'bg-red-500');
             document.getElementById('voiceIcon').textContent = '🎤';
-            recognition.stop();
+            try {
+                recognition.stop();
+            } catch (e) { /* ignore */ }
         }
 
-        // Navigation
+        // --- Navigation ---
         function navTo(screenId) {
+            playSynthSound('click');
             if (screenId === 2) {
                 const input = document.getElementById('worryInput').value.trim();
                 if (!input) return alert("Please tell me what's bothering you first.");
@@ -379,6 +439,8 @@
             const target = isNaN(screenId) ? document.getElementById(screenId) : document.getElementById(`screen${screenId}`);
             target.classList.add('active');
             window.scrollTo(0, 0);
+
+            if (screenId === '3b') renderSuggestions();
         }
 
         function handleDecision(canFix) {
@@ -398,6 +460,7 @@
             navTo('3a');
 
             setTimeout(() => {
+                playSynthSound('whoosh');
                 const rect = document.getElementById('worryToTrashContainer').getBoundingClientRect();
                 createExplosion(rect.left + rect.width / 2, rect.top + rect.height / 2);
                 document.getElementById('worryToTrashContainer').style.opacity = '0';
@@ -439,6 +502,7 @@
         }
 
         function simulatePayment() {
+            playSynthSound('click');
             state.isPaid = true;
             localStorage.setItem('ws_isPaid', 'true');
             showPlanning();
@@ -449,9 +513,26 @@
             const section = document.getElementById('planningSection');
             section.classList.remove('hidden');
             section.classList.add('page-transition');
+            renderSuggestions();
+        }
+
+        const suggestionBank = [
+            "Make a quick call", "Send a simple email", "Ask for 10 min to talk",
+            "Write down 3 steps", "Take a deep breath first", "Set a timer for 5 mins",
+            "Go for a short walk", "Talk to a friend about it", "Look up a professional"
+        ];
+
+        function renderSuggestions() {
+            const container = document.getElementById('suggestionContainer');
+            if (!container) return;
+            const shuffled = suggestionBank.sort(() => 0.5 - Math.random()).slice(0, 4);
+            container.innerHTML = shuffled.map(s => `
+                <span onclick="applySuggestion('${s}')" class="suggestion-chip px-6 py-2 rounded-full text-xl font-medium text-blue-600">${s}</span>
+            `).join('');
         }
 
         function applySuggestion(text) {
+            playSynthSound('click');
             document.getElementById('stepInput').value = text;
         }
 
@@ -472,7 +553,7 @@
             renderHistory();
             navTo(4);
 
-            // Magic Confetti
+            playSynthSound('ding');
             confetti({
                 particleCount: 150,
                 spread: 70,
@@ -488,7 +569,7 @@
 
             history.forEach(item => {
                 const div = document.createElement('div');
-                div.className = 'bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-2 hover:shadow-md transition-shadow';
+                div.className = 'bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-2 hover:shadow-md transition-shadow page-transition';
                 div.innerHTML = `
                     <p class="text-xl text-slate-400 font-medium">"${item.worry}"</p>
                     <p class="text-3xl text-blue-600 font-bold">→ ${item.step}</p>
@@ -498,7 +579,16 @@
             });
         }
 
+        function clearHistory() {
+            if (confirm("Are you sure you want to clear your entire archive? This cannot be undone.")) {
+                localStorage.removeItem('ws_history');
+                renderHistory();
+                playSynthSound('whoosh');
+            }
+        }
+
         function resetApp() {
+            playSynthSound('click');
             document.getElementById('worryInput').value = '';
             document.getElementById('stepInput').value = '';
             state.currentWorry = '';
